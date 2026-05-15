@@ -17,6 +17,10 @@ type Settings = {
   pause_trading: boolean;
   close_all: boolean;
   force_test_trade: boolean;
+  max_daily_dd: number;
+  max_floating_dd: number;
+  max_loss_streak: number;
+  risk_lock: boolean;
 };
 type BotStatus = {
   balance: number;
@@ -40,6 +44,10 @@ const defaultSettings: Settings = {
   pause_trading: false,
   close_all: false,
   force_test_trade: false,
+  max_daily_dd: 5,
+  max_floating_dd: 8,
+  max_loss_streak: 3,
+  risk_lock: false, 
 };
 const defaultStatus: BotStatus = {
   balance: 0,
@@ -253,6 +261,25 @@ export default function Home() {
                 onChange={(v) =>
                   setSettings({ ...settings, max_trades_per_day: v })
                 }
+              />
+              <Field
+                label="Max Daily DD"
+                value={settings.max_daily_dd}
+                suffix="%"
+                onChange={(v) => setSettings({ ...settings, max_daily_dd: v })}
+              />
+
+              <Field
+                label="Max Floating DD"
+                value={settings.max_floating_dd}
+                suffix="%"
+                onChange={(v) => setSettings({ ...settings, max_floating_dd: v })}
+              />
+
+              <Field
+                label="Max Loss Streak"
+                value={settings.max_loss_streak}
+                onChange={(v) => setSettings({ ...settings, max_loss_streak: v })}
               />
             </Panel>
             <Panel title="Strategy Filters">
