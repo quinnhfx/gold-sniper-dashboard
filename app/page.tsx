@@ -10,6 +10,8 @@ import {
   Tooltip,
 } from "recharts";
 
+type Tab = "dashboard" | "strategy" | "risk" | "logs";
+
 type Settings = {
   lots_per_1000: number;
   stop_loss_pips: number;
@@ -21,21 +23,44 @@ type Settings = {
   max_daily_dd: number;
   max_floating_dd: number;
   max_loss_streak: number;
+  risk_lock: boolean;
 
   lookback_bars: number;
   min_sweep_pips: number;
   max_sweep_pips: number;
   min_candle_body_pips: number;
 
+  use_asia_session: boolean;
+  use_london_session: boolean;
+  use_newyork_session: boolean;
+
+  analysis_timeframe: string;
+  entry_timeframe: string;
+
   use_candle_confirmation: boolean;
   use_session_filter: boolean;
   use_dxy_filter: boolean;
   use_trendline_filter: boolean;
+  use_breakout_retest: boolean;
+  use_structure_invalidation: boolean;
+
+  invalidation_pips: number;
+  max_spread_points: number;
+  trade_cooldown_minutes: number;
+
+  use_layering: boolean;
+  layer_distance_pips: number;
+  max_layers: number;
+  layer_multiplier: number;
+
+  strategy_preset: string;
+
+  resistance_zone: number;
+  support_zone: number;
 
   allow_buys: boolean;
   allow_sells: boolean;
 
-  risk_lock: boolean;
   pause_trading: boolean;
   close_all: boolean;
   force_test_trade: boolean;
@@ -56,28 +81,50 @@ const defaultSettings: Settings = {
   stop_loss_pips: 70,
   take_profit_pips: 70,
   break_even_pips: 40,
-
   max_trades_per_day: 15,
   max_open_trades: 1,
 
   max_daily_dd: 5,
   max_floating_dd: 8,
   max_loss_streak: 3,
+  risk_lock: false,
 
   lookback_bars: 32,
   min_sweep_pips: 10,
   max_sweep_pips: 60,
   min_candle_body_pips: 0,
 
+  use_asia_session: true,
+  use_london_session: true,
+  use_newyork_session: false,
+
+  analysis_timeframe: "M15",
+  entry_timeframe: "M15",
+
   use_candle_confirmation: true,
   use_session_filter: true,
   use_dxy_filter: true,
   use_trendline_filter: true,
+  use_breakout_retest: false,
+  use_structure_invalidation: false,
+
+  invalidation_pips: 80,
+  max_spread_points: 100,
+  trade_cooldown_minutes: 15,
+
+  use_layering: false,
+  layer_distance_pips: 50,
+  max_layers: 1,
+  layer_multiplier: 1,
+
+  strategy_preset: "balanced",
+
+  resistance_zone: 0,
+  support_zone: 0,
 
   allow_buys: true,
   allow_sells: true,
 
-  risk_lock: false,
   pause_trading: false,
   close_all: false,
   force_test_trade: false,
@@ -94,6 +141,7 @@ const defaultStatus: BotStatus = {
 };
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [status, setStatus] = useState<BotStatus>(defaultStatus);
   const [equityCurve, setEquityCurve] = useState<any[]>([]);
@@ -107,7 +155,11 @@ export default function Home() {
         fetch("/api/equity"),
       ]);
 
-      if (settingsRes.ok) setSettings(await settingsRes.json());
+      if (settingsRes.ok) {
+        const data = await settingsRes.json();
+        setSettings({ ...defaultSettings, ...data });
+      }
+
       if (statusRes.ok) setStatus(await statusRes.json());
       if (equityRes.ok) setEquityCurve(await equityRes.json());
     } catch {
@@ -117,9 +169,7 @@ export default function Home() {
 
   useEffect(() => {
     loadData();
-
     const interval = setInterval(loadData, 5000);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -136,8 +186,7 @@ export default function Home() {
       });
 
       const data = await res.json();
-
-      setSettings(data.settings ?? nextSettings);
+      setSettings({ ...defaultSettings, ...(data.settings ?? nextSettings) });
     } finally {
       setSaving(false);
     }
@@ -160,6 +209,29 @@ export default function Home() {
           </p>
 
           <h1 className="mt-3 text-2xl font-bold">AI Control</h1>
+
+          <nav className="mt-10 space-y-2 text-sm">
+            <SidebarButton
+              label="Dashboard"
+              active={activeTab === "dashboard"}
+              onClick={() => setActiveTab("dashboard")}
+            />
+            <SidebarButton
+              label="Strategy Tuning"
+              active={activeTab === "strategy"}
+              onClick={() => setActiveTab("strategy")}
+            />
+            <SidebarButton
+              label="Risk Engine"
+              active={activeTab === "risk"}
+              onClick={() => setActiveTab("risk")}
+            />
+            <SidebarButton
+              label="Logs"
+              active={activeTab === "logs"}
+              onClick={() => setActiveTab("logs")}
+            />
+          </nav>
 
           <div className="mt-10 rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4">
             <p className="text-sm text-cyan-200">Bot Status</p>
@@ -186,288 +258,522 @@ export default function Home() {
             </p>
 
             <h2 className="mt-3 text-4xl font-bold tracking-tight md:text-6xl">
-              Gold AI Command Centre
+              {activeTab === "dashboard" && "Gold AI Command Centre"}
+              {activeTab === "strategy" && "Strategy Tuning Lab"}
+              {activeTab === "risk" && "Risk Engine"}
+              {activeTab === "logs" && "Activity Logs"}
             </h2>
           </header>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Metric
-              label="Balance"
-              value={`£${Number(status.balance).toFixed(2)}`}
-              sub="Live from MT4"
+          {activeTab === "dashboard" && (
+            <DashboardTab
+              status={status}
+              equityCurve={equityCurve}
+              settings={settings}
+              setSettings={setSettings}
+              saveSettings={saveSettings}
+              saving={saving}
             />
+          )}
 
-            <Metric
-              label="Equity"
-              value={`£${Number(status.equity).toFixed(2)}`}
-              sub="Floating included"
+          {activeTab === "strategy" && (
+            <StrategyTab
+              settings={settings}
+              setSettings={setSettings}
+              saveSettings={saveSettings}
+              saving={saving}
             />
+          )}
 
-            <Metric
-              label="Drawdown"
-              value={`${Number(status.drawdown).toFixed(2)}%`}
-              sub="Current equity DD"
+          {activeTab === "risk" && (
+            <RiskTab
+              settings={settings}
+              setSettings={setSettings}
+              saveSettings={saveSettings}
+              saving={saving}
             />
+          )}
 
-            <Metric
-              label="Open Trades"
-              value={`${status.open_trades}`}
-              sub="XAUUSD only"
-            />
-          </div>
-
-          <div className="mt-6 grid gap-6 xl:grid-cols-3">
-            <Panel title="Live Equity Curve" wide>
-              <div className="h-64 rounded-3xl border border-white/10 bg-[#020617] p-5">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={equityCurve}>
-                    <XAxis dataKey="created_at" hide />
-                    <YAxis domain={["auto", "auto"]} />
-                    <Tooltip />
-
-                    <Line
-                      type="monotone"
-                      dataKey="equity"
-                      stroke="#22d3ee"
-                      strokeWidth={3}
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </Panel>
-
-            <Panel title="Execution State">
-              <Status label="Symbol" value="XAUUSD" />
-              <Status label="Server Time" value="GMT+1" />
-              <Status label="USDX Feed" value="Connected" good />
-              <Status
-                label="Daily P/L"
-                value={`£${Number(status.today_pl).toFixed(2)}`}
-              />
-            </Panel>
-          </div>
-
-          <div className="mt-6 grid gap-6 xl:grid-cols-3">
-            <Panel title="Risk Parameters">
-              <Field
-                label="Lots / £1000"
-                value={settings.lots_per_1000}
-                step={0.01}
-                onChange={(v) =>
-                  setSettings({ ...settings, lots_per_1000: v })
-                }
-              />
-
-              <Field
-                label="Stop Loss"
-                value={settings.stop_loss_pips}
-                step={10}
-                suffix="pips"
-                onChange={(v) =>
-                  setSettings({ ...settings, stop_loss_pips: v })
-                }
-              />
-
-              <Field
-                label="Take Profit"
-                value={settings.take_profit_pips}
-                step={10}
-                suffix="pips"
-                onChange={(v) =>
-                  setSettings({ ...settings, take_profit_pips: v })
-                }
-              />
-
-              <Field
-                label="Break Even"
-                value={settings.break_even_pips}
-                step={5}
-                suffix="pips"
-                onChange={(v) =>
-                  setSettings({ ...settings, break_even_pips: v })
-                }
-              />
-
-              <Field
-                label="Max Trades"
-                value={settings.max_trades_per_day}
-                step={1}
-                onChange={(v) =>
-                  setSettings({ ...settings, max_trades_per_day: v })
-                }
-              />
-
-              <Field
-                label="Max Daily DD"
-                value={settings.max_daily_dd}
-                step={1}
-                suffix="%"
-                onChange={(v) =>
-                  setSettings({ ...settings, max_daily_dd: v })
-                }
-              />
-
-              <Field
-                label="Max Floating DD"
-                value={settings.max_floating_dd}
-                step={1}
-                suffix="%"
-                onChange={(v) =>
-                  setSettings({ ...settings, max_floating_dd: v })
-                }
-              />
-
-              <Field
-                label="Max Loss Streak"
-                value={settings.max_loss_streak}
-                step={1}
-                onChange={(v) =>
-                  setSettings({ ...settings, max_loss_streak: v })
-                }
-              />
-            </Panel>
-
-            <Panel title="Strategy Tuning">
-              <Field
-                label="Lookback Bars"
-                value={settings.lookback_bars}
-                step={1}
-                onChange={(v) =>
-                  setSettings({ ...settings, lookback_bars: v })
-                }
-              />
-
-              <Field
-                label="Min Sweep"
-                value={settings.min_sweep_pips}
-                step={1}
-                suffix="pips"
-                onChange={(v) =>
-                  setSettings({ ...settings, min_sweep_pips: v })
-                }
-              />
-
-              <Field
-                label="Max Sweep"
-                value={settings.max_sweep_pips}
-                step={1}
-                suffix="pips"
-                onChange={(v) =>
-                  setSettings({ ...settings, max_sweep_pips: v })
-                }
-              />
-
-              <Field
-                label="Min Candle Body"
-                value={settings.min_candle_body_pips}
-                step={1}
-                suffix="pips"
-                onChange={(v) =>
-                  setSettings({
-                    ...settings,
-                    min_candle_body_pips: v,
-                  })
-                }
-              />
-
-              <Toggle
-                label="Use Candle Confirmation"
-                checked={settings.use_candle_confirmation}
-                onChange={(v) =>
-                  setSettings({
-                    ...settings,
-                    use_candle_confirmation: v,
-                  })
-                }
-              />
-
-              <Toggle
-                label="Allow Buys"
-                checked={settings.allow_buys}
-                onChange={(v) =>
-                  setSettings({
-                    ...settings,
-                    allow_buys: v,
-                  })
-                }
-              />
-
-              <Toggle
-                label="Allow Sells"
-                checked={settings.allow_sells}
-                onChange={(v) =>
-                  setSettings({
-                    ...settings,
-                    allow_sells: v,
-                  })
-                }
-              />
-            </Panel>
-
-            <Panel title="Control Panel">
-              <button
-                onClick={() => {
-                  const next = {
-                    ...settings,
-                    pause_trading: !settings.pause_trading,
-                  };
-
-                  setSettings(next);
-                  saveSettings(next);
-                }}
-                className={`mb-3 w-full rounded-2xl px-5 py-4 font-bold ${
-                  settings.pause_trading
-                    ? "bg-emerald-400 text-black"
-                    : "bg-orange-500 text-white"
-                }`}
-              >
-                {settings.pause_trading
-                  ? "Resume Trading"
-                  : "Pause New Trades"}
-              </button>
-
-              <button
-                onClick={() => {
-                  const next = {
-                    ...settings,
-                    close_all: true,
-                  };
-
-                  setSettings(next);
-                  saveSettings(next);
-                }}
-                className="mb-3 w-full rounded-2xl bg-red-600 px-5 py-4 font-bold text-white"
-              >
-                Emergency Close All
-              </button>
-
-              <button
-                onClick={() => saveSettings()}
-                className="w-full rounded-2xl bg-cyan-400 px-5 py-4 font-bold text-black"
-              >
-                {saving ? "Saving..." : "Save Settings"}
-              </button>
-
-              <button
-                onClick={() => {
-                  const next = {
-                    ...settings,
-                    force_test_trade: true,
-                  };
-
-                  setSettings(next);
-                  saveSettings(next);
-                }}
-                className="mt-3 w-full rounded-2xl bg-purple-500 px-5 py-4 font-bold text-white"
-              >
-                Force Test Trade
-              </button>
-            </Panel>
-          </div>
+          {activeTab === "logs" && <LogsTab />}
         </section>
       </div>
     </main>
+  );
+}
+
+function DashboardTab({
+  status,
+  equityCurve,
+  settings,
+  setSettings,
+  saveSettings,
+  saving,
+}: {
+  status: BotStatus;
+  equityCurve: any[];
+  settings: Settings;
+  setSettings: (v: Settings) => void;
+  saveSettings: (v?: Settings) => void;
+  saving: boolean;
+}) {
+  return (
+    <>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Metric
+          label="Balance"
+          value={`£${Number(status.balance).toFixed(2)}`}
+          sub="Live from MT4"
+        />
+        <Metric
+          label="Equity"
+          value={`£${Number(status.equity).toFixed(2)}`}
+          sub="Floating included"
+        />
+        <Metric
+          label="Drawdown"
+          value={`${Number(status.drawdown).toFixed(2)}%`}
+          sub="Current equity DD"
+        />
+        <Metric
+          label="Open Trades"
+          value={`${status.open_trades}`}
+          sub="XAUUSD only"
+        />
+      </div>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+        <Panel title="Live Equity Curve" wide>
+          <div className="h-64 rounded-3xl border border-white/10 bg-[#020617] p-5">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={equityCurve}>
+                <XAxis dataKey="created_at" hide />
+                <YAxis domain={["auto", "auto"]} />
+                <Tooltip />
+                <Line
+                  type="monotone"
+                  dataKey="equity"
+                  stroke="#22d3ee"
+                  strokeWidth={3}
+                  dot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
+
+        <Panel title="Execution State">
+          <Status label="Symbol" value="XAUUSD" />
+          <Status label="Server Time" value="GMT+1" />
+          <Status label="USDX Feed" value="Connected" good />
+          <Status
+            label="Daily P/L"
+            value={`£${Number(status.today_pl).toFixed(2)}`}
+          />
+        </Panel>
+      </div>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+        <Panel title="Core Risk">
+          <Field
+            label="Lots / £1000"
+            value={settings.lots_per_1000}
+            step={0.01}
+            onChange={(v) => setSettings({ ...settings, lots_per_1000: v })}
+          />
+
+          <Field
+            label="Stop Loss"
+            value={settings.stop_loss_pips}
+            step={10}
+            suffix="pips"
+            onChange={(v) => setSettings({ ...settings, stop_loss_pips: v })}
+          />
+
+          <Field
+            label="Take Profit"
+            value={settings.take_profit_pips}
+            step={10}
+            suffix="pips"
+            onChange={(v) => setSettings({ ...settings, take_profit_pips: v })}
+          />
+
+          <Field
+            label="Break Even"
+            value={settings.break_even_pips}
+            step={5}
+            suffix="pips"
+            onChange={(v) => setSettings({ ...settings, break_even_pips: v })}
+          />
+        </Panel>
+
+        <Panel title="Control Panel">
+          <button
+            onClick={() => {
+              const next = {
+                ...settings,
+                pause_trading: !settings.pause_trading,
+              };
+
+              setSettings(next);
+              saveSettings(next);
+            }}
+            className={`mb-3 w-full rounded-2xl px-5 py-4 font-bold ${
+              settings.pause_trading
+                ? "bg-emerald-400 text-black"
+                : "bg-orange-500 text-white"
+            }`}
+          >
+            {settings.pause_trading ? "Resume Trading" : "Pause New Trades"}
+          </button>
+
+          <button
+            onClick={() => {
+              const next = {
+                ...settings,
+                close_all: true,
+              };
+
+              setSettings(next);
+              saveSettings(next);
+            }}
+            className="mb-3 w-full rounded-2xl bg-red-600 px-5 py-4 font-bold text-white"
+          >
+            Emergency Close All
+          </button>
+
+          <button
+            onClick={() => saveSettings()}
+            className="w-full rounded-2xl bg-cyan-400 px-5 py-4 font-bold text-black"
+          >
+            {saving ? "Saving..." : "Save Settings"}
+          </button>
+
+          <button
+            onClick={() => {
+              const next = {
+                ...settings,
+                force_test_trade: true,
+              };
+
+              setSettings(next);
+              saveSettings(next);
+            }}
+            className="mt-3 w-full rounded-2xl bg-purple-500 px-5 py-4 font-bold text-white"
+          >
+            Force Test Trade
+          </button>
+        </Panel>
+      </div>
+    </>
+  );
+}
+
+function StrategyTab({
+  settings,
+  setSettings,
+  saveSettings,
+  saving,
+}: {
+  settings: Settings;
+  setSettings: (v: Settings) => void;
+  saveSettings: (v?: Settings) => void;
+  saving: boolean;
+}) {
+  return (
+    <div className="grid gap-6 xl:grid-cols-3">
+      <Panel title="Session Selection">
+        <Toggle
+          label="Asia Session"
+          checked={settings.use_asia_session}
+          onChange={(v) => setSettings({ ...settings, use_asia_session: v })}
+        />
+        <p className="mb-3 text-xs text-slate-500">23:00 - 07:00 GMT</p>
+
+        <Toggle
+          label="London Session"
+          checked={settings.use_london_session}
+          onChange={(v) => setSettings({ ...settings, use_london_session: v })}
+        />
+        <p className="mb-3 text-xs text-slate-500">08:00 - 11:00 GMT</p>
+
+        <Toggle
+          label="New York Session"
+          checked={settings.use_newyork_session}
+          onChange={(v) => setSettings({ ...settings, use_newyork_session: v })}
+        />
+        <p className="mb-3 text-xs text-slate-500">13:00 - 21:00 GMT</p>
+
+        <Toggle
+          label="Use Session Filter"
+          checked={settings.use_session_filter}
+          onChange={(v) => setSettings({ ...settings, use_session_filter: v })}
+        />
+      </Panel>
+
+      <Panel title="Zone Detection">
+        <AlertBox
+          title="Resistance Zone Detected"
+          value={
+            Number(settings.resistance_zone) > 0
+              ? `@ ${Number(settings.resistance_zone).toFixed(2)}`
+              : "Waiting for EA..."
+          }
+        />
+
+        <AlertBox
+          title="Support Zone Detected"
+          value={
+            Number(settings.support_zone) > 0
+              ? `@ ${Number(settings.support_zone).toFixed(2)}`
+              : "Waiting for EA..."
+          }
+        />
+
+        <Field
+          label="Lookback Bars"
+          value={settings.lookback_bars}
+          step={1}
+          onChange={(v) => setSettings({ ...settings, lookback_bars: v })}
+        />
+      </Panel>
+
+      <Panel title="Liquidity Grab Settings">
+        <Field
+          label="Minimum Grab"
+          value={settings.min_sweep_pips}
+          step={1}
+          suffix="pips"
+          onChange={(v) => setSettings({ ...settings, min_sweep_pips: v })}
+        />
+
+        <Field
+          label="Maximum Grab"
+          value={settings.max_sweep_pips}
+          step={1}
+          suffix="pips"
+          onChange={(v) => setSettings({ ...settings, max_sweep_pips: v })}
+        />
+
+        <Field
+          label="Min Candle Body"
+          value={settings.min_candle_body_pips}
+          step={1}
+          suffix="pips"
+          onChange={(v) =>
+            setSettings({ ...settings, min_candle_body_pips: v })
+          }
+        />
+
+        <Toggle
+          label="Wait For Confirmation Candle"
+          checked={settings.use_candle_confirmation}
+          onChange={(v) =>
+            setSettings({ ...settings, use_candle_confirmation: v })
+          }
+        />
+      </Panel>
+
+      <Panel title="Timeframe Control">
+        <SelectField
+          label="Analysis Timeframe"
+          value={settings.analysis_timeframe}
+          options={["M1", "M5", "M15", "M30", "H1", "H4"]}
+          onChange={(v) => setSettings({ ...settings, analysis_timeframe: v })}
+        />
+
+        <SelectField
+          label="Entry Timeframe"
+          value={settings.entry_timeframe}
+          options={["M1", "M5", "M15", "M30", "H1"]}
+          onChange={(v) => setSettings({ ...settings, entry_timeframe: v })}
+        />
+      </Panel>
+
+      <Panel title="Filters & Direction">
+        <Toggle
+          label="Allow Buys"
+          checked={settings.allow_buys}
+          onChange={(v) => setSettings({ ...settings, allow_buys: v })}
+        />
+
+        <Toggle
+          label="Allow Sells"
+          checked={settings.allow_sells}
+          onChange={(v) => setSettings({ ...settings, allow_sells: v })}
+        />
+
+        <Toggle
+          label="DXY Filter"
+          checked={settings.use_dxy_filter}
+          onChange={(v) => setSettings({ ...settings, use_dxy_filter: v })}
+        />
+
+        <Toggle
+          label="Trendline Touch Filter"
+          checked={settings.use_trendline_filter}
+          onChange={(v) =>
+            setSettings({ ...settings, use_trendline_filter: v })
+          }
+        />
+
+        <Toggle
+          label="Breakout Retest Required"
+          checked={settings.use_breakout_retest}
+          onChange={(v) =>
+            setSettings({ ...settings, use_breakout_retest: v })
+          }
+        />
+      </Panel>
+
+      <Panel title="Layering Controls">
+        <Toggle
+          label="Enable Layering"
+          checked={settings.use_layering}
+          onChange={(v) => setSettings({ ...settings, use_layering: v })}
+        />
+
+        {settings.use_layering && (
+          <>
+            <Field
+              label="Layer Distance"
+              value={settings.layer_distance_pips}
+              step={5}
+              suffix="pips"
+              onChange={(v) =>
+                setSettings({ ...settings, layer_distance_pips: v })
+              }
+            />
+
+            <Field
+              label="Max Layers"
+              value={settings.max_layers}
+              step={1}
+              onChange={(v) => setSettings({ ...settings, max_layers: v })}
+            />
+
+            <Field
+              label="Layer Multiplier"
+              value={settings.layer_multiplier}
+              step={0.1}
+              onChange={(v) =>
+                setSettings({ ...settings, layer_multiplier: v })
+              }
+            />
+          </>
+        )}
+      </Panel>
+
+      <Panel title="Invalidation & Execution">
+        <Toggle
+          label="Structure Invalidation"
+          checked={settings.use_structure_invalidation}
+          onChange={(v) =>
+            setSettings({ ...settings, use_structure_invalidation: v })
+          }
+        />
+
+        <Field
+          label="Invalidation Distance"
+          value={settings.invalidation_pips}
+          step={10}
+          suffix="pips"
+          onChange={(v) => setSettings({ ...settings, invalidation_pips: v })}
+        />
+
+        <Field
+          label="Max Spread"
+          value={settings.max_spread_points}
+          step={10}
+          suffix="points"
+          onChange={(v) => setSettings({ ...settings, max_spread_points: v })}
+        />
+
+        <Field
+          label="Cooldown"
+          value={settings.trade_cooldown_minutes}
+          step={5}
+          suffix="mins"
+          onChange={(v) =>
+            setSettings({ ...settings, trade_cooldown_minutes: v })
+          }
+        />
+      </Panel>
+
+      <Panel title="Strategy Preset">
+        <SelectField
+          label="Preset"
+          value={settings.strategy_preset}
+          options={["aggressive", "balanced", "strict"]}
+          onChange={(v) => setSettings({ ...settings, strategy_preset: v })}
+        />
+
+        <button
+          onClick={() => saveSettings()}
+          className="mt-5 w-full rounded-2xl bg-cyan-400 px-5 py-4 font-bold text-black"
+        >
+          {saving ? "Saving..." : "Save Strategy Settings"}
+        </button>
+      </Panel>
+    </div>
+  );
+}
+
+function RiskTab({
+  settings,
+  setSettings,
+  saveSettings,
+  saving,
+}: {
+  settings: Settings;
+  setSettings: (v: Settings) => void;
+  saveSettings: (v?: Settings) => void;
+  saving: boolean;
+}) {
+  return (
+    <div className="grid gap-6 xl:grid-cols-3">
+      <Panel title="Risk Engine">
+        <Field
+          label="Max Daily DD"
+          value={settings.max_daily_dd}
+          step={1}
+          suffix="%"
+          onChange={(v) => setSettings({ ...settings, max_daily_dd: v })}
+        />
+
+        <Field
+          label="Max Floating DD"
+          value={settings.max_floating_dd}
+          step={1}
+          suffix="%"
+          onChange={(v) => setSettings({ ...settings, max_floating_dd: v })}
+        />
+
+        <Field
+          label="Max Loss Streak"
+          value={settings.max_loss_streak}
+          step={1}
+          onChange={(v) => setSettings({ ...settings, max_loss_streak: v })}
+        />
+
+        <button
+          onClick={() => saveSettings()}
+          className="mt-5 w-full rounded-2xl bg-cyan-400 px-5 py-4 font-bold text-black"
+        >
+          {saving ? "Saving..." : "Save Risk Settings"}
+        </button>
+      </Panel>
+    </div>
+  );
+}
+
+function LogsTab() {
+  return (
+    <Panel title="Activity Logs">
+      <div className="space-y-3 text-sm text-slate-400">
+        <p>Trade logs and settings audit trail will be added here.</p>
+        <p>Next upgrade: store every setting change and every EA action.</p>
+      </div>
+    </Panel>
   );
 }
 
@@ -483,9 +789,7 @@ function Metric({
   return (
     <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
       <p className="text-sm text-slate-400">{label}</p>
-
       <h3 className="mt-3 text-3xl font-bold text-white">{value}</h3>
-
       <p className="mt-2 text-xs text-slate-500">{sub}</p>
     </div>
   );
@@ -512,6 +816,29 @@ function Panel({
   );
 }
 
+function SidebarButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full rounded-2xl px-4 py-3 text-left transition ${
+        active
+          ? "bg-cyan-400 text-black"
+          : "text-slate-300 hover:bg-white/10"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
 function Status({
   label,
   value,
@@ -524,10 +851,7 @@ function Status({
   return (
     <div className="flex justify-between border-b border-white/10 py-3 text-sm">
       <span className="text-slate-400">{label}</span>
-
-      <span className={good ? "text-emerald-300" : "text-white"}>
-        {value}
-      </span>
+      <span className={good ? "text-emerald-300" : "text-white"}>{value}</span>
     </div>
   );
 }
@@ -548,19 +872,15 @@ function Field({
   return (
     <label className="flex items-center justify-between border-b border-white/10 py-3 text-sm">
       <span className="text-slate-400">{label}</span>
-
       <div className="flex items-center gap-2">
         <input
           type="number"
           step={step ?? 1}
           value={value ?? 0}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="w-20 rounded-xl border border-white/10 bg-[#020617] px-3 py-2 text-right text-white outline-none focus:border-cyan-400"
+          className="w-24 rounded-xl border border-white/10 bg-[#020617] px-3 py-2 text-right text-white outline-none focus:border-cyan-400"
         />
-
-        {suffix && (
-          <span className="text-xs text-slate-500">{suffix}</span>
-        )}
+        {suffix && <span className="text-xs text-slate-500">{suffix}</span>}
       </div>
     </label>
   );
@@ -576,19 +896,60 @@ function Toggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex items-center justify-between border-b border-white/10 py-3 text-sm">
+    <div className="flex items-center justify-between border-b border-white/10 py-3 text-sm">
       <span className="text-slate-400">{label}</span>
 
       <button
+        type="button"
         onClick={() => onChange(!checked)}
         className={`rounded-xl px-3 py-1 text-xs font-bold ${
-          checked
-            ? "bg-emerald-400 text-black"
-            : "bg-red-500 text-white"
+          checked ? "bg-emerald-400 text-black" : "bg-red-500 text-white"
         }`}
       >
         {checked ? "ON" : "OFF"}
       </button>
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between border-b border-white/10 py-3 text-sm">
+      <span className="text-slate-400">{label}</span>
+
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-xl border border-white/10 bg-[#020617] px-3 py-2 text-white outline-none focus:border-cyan-400"
+      >
+        {options.map((option) => (
+          <option key={option} value={option} className="bg-[#020617]">
+            {option}
+          </option>
+        ))}
+      </select>
     </label>
+  );
+}
+
+function AlertBox({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="mb-4 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">
+      <p className="text-xs uppercase tracking-[0.25em] text-cyan-300">
+        {title}
+      </p>
+
+      <p className="mt-2 text-2xl font-bold text-white">{value}</p>
+    </div>
   );
 }
