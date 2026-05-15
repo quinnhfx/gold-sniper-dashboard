@@ -187,8 +187,14 @@ export default function Home() {
       }
 
       if (statusRes.ok) setStatus(await statusRes.json());
-      if (equityRes.ok) setEquityCurve(await equityRes.json());
-      if (tradesRes.ok) setTrades(await tradesRes.json());
+      if (equityRes.ok) {
+        const equityData = await equityRes.json();
+        setEquityCurve(Array.isArray(equityData) ? equityData : []);
+      }
+      if (tradesRes.ok) {
+        const tradeData = await tradesRes.json();
+        setTrades(Array.isArray(tradeData) ? tradeData : []);
+      }
     } catch {
       console.log("Waiting for API connection...");
     }
