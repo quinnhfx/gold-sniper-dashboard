@@ -3,7 +3,23 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 const BOT_ID = "gold-sniper";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+
+  if (searchParams.get("reset_close_all") === "true") {
+    await supabaseAdmin
+      .from("bot_settings")
+      .update({ close_all: false })
+      .eq("id", BOT_ID);
+  }
+
+  if (searchParams.get("reset_force_test_trade") === "true") {
+    await supabaseAdmin
+      .from("bot_settings")
+      .update({ force_test_trade: false })
+      .eq("id", BOT_ID);
+  }
+
   const { data, error } = await supabaseAdmin
     .from("bot_settings")
     .select("*")
@@ -33,6 +49,7 @@ export async function POST(request: Request) {
       use_trendline_filter: body.use_trendline_filter,
       pause_trading: body.pause_trading,
       close_all: body.close_all,
+      force_test_trade: body.force_test_trade,
       updated_at: new Date().toISOString(),
     })
     .select()
