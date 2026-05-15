@@ -1,7 +1,5 @@
 "use client";
-
 import { useEffect, useState, type ReactNode } from "react";
-
 type Settings = {
   lots_per_1000: number;
   stop_loss_pips: number;
@@ -14,8 +12,8 @@ type Settings = {
   use_trendline_filter: boolean;
   pause_trading: boolean;
   close_all: boolean;
+  force_test_trade: boolean;
 };
-
 type BotStatus = {
   balance: number;
   equity: number;
@@ -25,7 +23,6 @@ type BotStatus = {
   today_pl: number;
   last_heartbeat: string;
 };
-
 const defaultSettings: Settings = {
   lots_per_1000: 0.01,
   stop_loss_pips: 70,
@@ -38,8 +35,8 @@ const defaultSettings: Settings = {
   use_trendline_filter: true,
   pause_trading: false,
   close_all: false,
+  force_test_trade: false,
 };
-
 const defaultStatus: BotStatus = {
   balance: 0,
   equity: 0,
@@ -49,35 +46,29 @@ const defaultStatus: BotStatus = {
   today_pl: 0,
   last_heartbeat: "",
 };
-
 export default function Home() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [status, setStatus] = useState<BotStatus>(defaultStatus);
   const [saving, setSaving] = useState(false);
-
   async function loadData() {
     try {
       const [settingsRes, statusRes] = await Promise.all([
         fetch("/api/settings"),
         fetch("/api/status"),
       ]);
-
       if (settingsRes.ok) setSettings(await settingsRes.json());
       if (statusRes.ok) setStatus(await statusRes.json());
     } catch {
       console.log("Waiting for API connection...");
     }
   }
-
   useEffect(() => {
     loadData();
     const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
   }, []);
-
   async function saveSettings(nextSettings = settings) {
     setSaving(true);
-
     try {
       const res = await fetch("/api/settings", {
         method: "POST",
@@ -86,12 +77,10 @@ export default function Home() {
         },
         body: JSON.stringify(nextSettings),
       });
-
       if (!res.ok) {
         alert("Failed to save settings");
         return;
       }
-
       const data = await res.json();
       setSettings(data.settings ?? nextSettings);
       alert("Settings saved");
@@ -101,24 +90,19 @@ export default function Home() {
       setSaving(false);
     }
   }
-
   const heartbeatAge = status.last_heartbeat
     ? Math.round((Date.now() - new Date(status.last_heartbeat).getTime()) / 1000)
     : null;
-
   const botOnline = heartbeatAge !== null && heartbeatAge < 20;
-
   return (
     <main className="min-h-screen bg-[#030712] text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,#164e63_0%,transparent_35%),radial-gradient(circle_at_top_right,#1e1b4b_0%,transparent_30%)] opacity-60" />
-
       <div className="relative mx-auto flex min-h-screen max-w-7xl gap-6 px-4 py-6">
         <aside className="hidden w-72 rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur-xl lg:block">
           <p className="text-xs uppercase tracking-[0.4em] text-cyan-300">
             Gold Sniper
           </p>
           <h1 className="mt-3 text-2xl font-bold">AI Control</h1>
-
           <nav className="mt-10 space-y-2 text-sm">
             {["Dashboard", "Risk Engine", "Strategy", "Sessions", "Logs"].map(
               (item) => (
@@ -131,7 +115,6 @@ export default function Home() {
               )
             )}
           </nav>
-
           <div className="mt-10 rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4">
             <p className="text-sm text-cyan-200">Bot Status</p>
             <p
@@ -147,7 +130,6 @@ export default function Home() {
             </p>
           </div>
         </aside>
-
         <section className="flex-1">
           <header className="mb-6 rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
             <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
@@ -163,7 +145,6 @@ export default function Home() {
                   management for the gold sniper execution engine.
                 </p>
               </div>
-
               <div
                 className={`rounded-full border px-5 py-3 text-sm font-bold ${
                   settings.pause_trading
@@ -175,7 +156,6 @@ export default function Home() {
               </div>
             </div>
           </header>
-
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <Metric
               label="Balance"
@@ -200,7 +180,6 @@ export default function Home() {
               sub="XAUUSD only"
             />
           </div>
-
           <div className="mt-6 grid gap-6 xl:grid-cols-3">
             <Panel title="Live Equity Curve" wide>
               <div className="h-64 rounded-3xl border border-white/10 bg-[#020617] p-5">
@@ -218,11 +197,10 @@ export default function Home() {
                 </div>
               </div>
             </Panel>
-
             <Panel title="Execution State">
               <Status label="Symbol" value="XAUUSD" />
               <Status label="Server Time" value="GMT+1" />
-              <Status label="USDX Feed" value="Pending" />
+              <Status label="USDX Feed" value="Connected" good />
               <Status label="Mode" value="Liquidity Sweep" />
               <Status
                 label="Daily P/L"
@@ -231,7 +209,6 @@ export default function Home() {
               />
             </Panel>
           </div>
-
           <div className="mt-6 grid gap-6 xl:grid-cols-3">
             <Panel title="Risk Parameters">
               <Field
@@ -274,7 +251,6 @@ export default function Home() {
                 }
               />
             </Panel>
-
             <Panel title="Strategy Filters">
               <Toggle
                 label="Asia + London Sessions"
@@ -300,7 +276,6 @@ export default function Home() {
               <Toggle label="Liquidity Sweep Required" checked locked />
               <Toggle label="Candle Rejection Required" checked locked />
             </Panel>
-
             <Panel title="Control Panel">
               <button
                 onClick={() => {
@@ -319,11 +294,13 @@ export default function Home() {
               >
                 {settings.pause_trading ? "Resume Trading" : "Pause New Trades"}
               </button>
-
               <button
                 onClick={() => {
                   if (!confirm("Emergency close all trades?")) return;
-                  const next = { ...settings, close_all: true };
+                  const next = {
+                    ...settings,
+                    close_all: true,
+                  };
                   setSettings(next);
                   saveSettings(next);
                 }}
@@ -331,12 +308,25 @@ export default function Home() {
               >
                 Emergency Close All
               </button>
-
               <button
                 onClick={() => saveSettings()}
                 className="w-full rounded-2xl bg-cyan-400 px-5 py-4 font-bold text-black"
               >
                 {saving ? "Saving..." : "Save Settings"}
+              </button>
+              <button
+                onClick={() => {
+                  if (!confirm("Open one test BUY trade?")) return;
+                  const next = {
+                    ...settings,
+                    force_test_trade: true,
+                  };
+                  setSettings(next);
+                  saveSettings(next);
+                }}
+                className="mt-3 w-full rounded-2xl bg-purple-500 px-5 py-4 font-bold text-white"
+              >
+                Force Test Trade
               </button>
             </Panel>
           </div>
@@ -345,7 +335,6 @@ export default function Home() {
     </main>
   );
 }
-
 function Metric({
   label,
   value,
@@ -371,7 +360,6 @@ function Metric({
     </div>
   );
 }
-
 function Panel({
   title,
   children,
@@ -392,7 +380,6 @@ function Panel({
     </div>
   );
 }
-
 function Status({
   label,
   value,
@@ -409,7 +396,6 @@ function Status({
     </div>
   );
 }
-
 function Field({
   label,
   value,
@@ -427,6 +413,7 @@ function Field({
       <div className="flex items-center gap-2">
         <input
           type="number"
+          step="0.01"
           value={value ?? 0}
           onChange={(e) => onChange(Number(e.target.value))}
           className="w-20 rounded-xl border border-white/10 bg-[#020617] px-3 py-2 text-right text-white outline-none focus:border-cyan-400"
@@ -436,7 +423,6 @@ function Field({
     </label>
   );
 }
-
 function Toggle({
   label,
   checked,
