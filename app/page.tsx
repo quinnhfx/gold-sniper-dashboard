@@ -1,4 +1,7 @@
 "use client";
+<p className="mt-3 rounded-xl bg-purple-500 p-3 font-bold text-white">
+  FORCE TEST VERSION LIVE
+</p>
 import { useEffect, useState, type ReactNode } from "react";
 type Settings = {
   lots_per_1000: number;
