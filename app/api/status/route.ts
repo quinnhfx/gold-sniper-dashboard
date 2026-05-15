@@ -10,30 +10,58 @@ export async function GET() {
     .eq("id", BOT_ID)
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.log(error);
+
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json(data);
 }
 
 export async function POST(request: Request) {
-  const body = await request.json();
+  try {
+    const body = await request.json();
 
-  const { data, error } = await supabaseAdmin
-    .from("bot_status")
-    .update({
-      balance: body.balance,
-      equity: body.equity,
-      drawdown: body.drawdown,
-      floating_pl: body.floating_pl,
-      open_trades: body.open_trades,
-      today_pl: body.today_pl,
-      last_heartbeat: new Date().toISOString(),
-    })
-    .eq("id", BOT_ID)
-    .select()
-    .single();
+    console.log("POST BODY:", body);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const { data, error } = await supabaseAdmin
+      .from("bot_status")
+      .upsert({
+        id: BOT_ID,
+        balance: body.balance,
+        equity: body.equity,
+        drawdown: body.drawdown,
+        floating_pl: body.floating_pl,
+        open_trades: body.open_trades,
+        today_pl: body.today_pl,
+        last_heartbeat: new Date().toISOString(),
+      })
+      .select()
+      .single();
 
-  return NextResponse.json({ success: true, status: data });
+    if (error) {
+      console.log("SUPABASE ERROR:", error);
+
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      status: data,
+    });
+  } catch (err) {
+    console.log("API ERROR:", err);
+
+    return NextResponse.json(
+      { error: "Failed POST" },
+      { status: 500 }
+    );
+  }
 }
