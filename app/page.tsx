@@ -3,6 +3,7 @@
   FORCE TEST VERSION LIVE
 </p>
 import { useEffect, useState, type ReactNode } from "react";
+import { useUser, SignInButton } from "@clerk/nextjs";
 type Settings = {
   lots_per_1000: number;
   stop_loss_pips: number;
@@ -50,6 +51,29 @@ const defaultStatus: BotStatus = {
   last_heartbeat: "",
 };
 export default function Home() {
+  const { isSignedIn, isLoaded } = useUser();
+
+if (!isLoaded) return null;
+
+if (!isSignedIn) {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#030712] px-4 text-white">
+      <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-white/5 p-8 text-center backdrop-blur-xl">
+        <p className="text-sm uppercase tracking-[0.35em] text-cyan-300">
+          Gold Sniper
+        </p>
+        <h1 className="mt-4 text-4xl font-bold">Control Portal</h1>
+        <p className="mt-3 text-slate-400">Secure login required.</p>
+
+        <SignInButton mode="modal">
+          <button className="mt-8 w-full rounded-2xl bg-cyan-400 px-5 py-4 font-bold text-black">
+            Login
+          </button>
+        </SignInButton>
+      </div>
+    </main>
+  );
+}
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [status, setStatus] = useState<BotStatus>(defaultStatus);
   const [saving, setSaving] = useState(false);
