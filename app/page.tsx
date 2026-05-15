@@ -226,6 +226,7 @@ export default function Home() {
               <Field
                 label="Lots / £1000"
                 value={settings.lots_per_1000}
+                step={0.01}
                 onChange={(v) =>
                   setSettings({ ...settings, lots_per_1000: v })
                 }
@@ -233,6 +234,7 @@ export default function Home() {
               <Field
                 label="Stop Loss"
                 value={settings.stop_loss_pips}
+                step={10}
                 suffix="pips"
                 onChange={(v) =>
                   setSettings({ ...settings, stop_loss_pips: v })
@@ -241,6 +243,7 @@ export default function Home() {
               <Field
                 label="Take Profit"
                 value={settings.take_profit_pips}
+                step={10}
                 suffix="pips"
                 onChange={(v) =>
                   setSettings({ ...settings, take_profit_pips: v })
@@ -249,6 +252,7 @@ export default function Home() {
               <Field
                 label="Break Even"
                 value={settings.break_even_pips}
+                step={5}
                 suffix="pips"
                 onChange={(v) =>
                   setSettings({ ...settings, break_even_pips: v })
@@ -257,6 +261,7 @@ export default function Home() {
               <Field
                 label="Max Trades"
                 value={settings.max_trades_per_day}
+                step={1}
                 suffix="/ day"
                 onChange={(v) =>
                   setSettings({ ...settings, max_trades_per_day: v })
@@ -265,6 +270,7 @@ export default function Home() {
               <Field
                 label="Max Daily DD"
                 value={settings.max_daily_dd}
+                step={1}
                 suffix="%"
                 onChange={(v) => setSettings({ ...settings, max_daily_dd: v })}
               />
@@ -272,6 +278,7 @@ export default function Home() {
               <Field
                 label="Max Floating DD"
                 value={settings.max_floating_dd}
+                step={1}
                 suffix="%"
                 onChange={(v) => setSettings({ ...settings, max_floating_dd: v })}
               />
@@ -279,6 +286,7 @@ export default function Home() {
               <Field
                 label="Max Loss Streak"
                 value={settings.max_loss_streak}
+                step={1}
                 onChange={(v) => setSettings({ ...settings, max_loss_streak: v })}
               />
             </Panel>
@@ -431,10 +439,12 @@ function Field({
   label,
   value,
   suffix,
+  step,
   onChange,
 }: {
   label: string;
   value: number;
+  step?: number;
   suffix?: string;
   onChange: (v: number) => void;
 }) {
@@ -444,7 +454,7 @@ function Field({
       <div className="flex items-center gap-2">
         <input
           type="number"
-          step="0.01"
+          step={step ?? 1}
           value={value ?? 0}
           onChange={(e) => onChange(Number(e.target.value))}
           className="w-20 rounded-xl border border-white/10 bg-[#020617] px-3 py-2 text-right text-white outline-none focus:border-cyan-400"
