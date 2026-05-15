@@ -10,7 +10,31 @@ import {
   Tooltip,
 } from "recharts";
 
-type Tab = "dashboard" | "strategy" | "risk" | "logs";
+type Tab = "dashboard" | "strategy" | "risk" | "replay" | "logs";
+
+type Trade = {
+  id: number;
+  ticket: number;
+  symbol: string;
+  direction: string;
+  lot_size: number;
+  entry_price: number;
+  stop_loss: number;
+  take_profit: number;
+  close_price: number | null;
+  profit: number;
+  total_pl: number;
+  session_name: string;
+  strategy_preset: string;
+  analysis_timeframe: string;
+  entry_timeframe: string;
+  sweep_pips: number;
+  confirmation_used: boolean;
+  layered_trade: boolean;
+  opened_at: string;
+  closed_at: string | null;
+  status: string;
+};
 
 type Settings = {
   lots_per_1000: number;
@@ -145,12 +169,14 @@ export default function Home() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [status, setStatus] = useState<BotStatus>(defaultStatus);
   const [equityCurve, setEquityCurve] = useState<any[]>([]);
+  const [trades, setTrades] = useState<Trade[]>([]);
   const [saving, setSaving] = useState(false);
 
   async function loadData() {
     try {
-      const [settingsRes, statusRes, equityRes] = await Promise.all([
+      const [settingsRes, statusRes, equityRes, tradesRes] = await Promise.all([
         fetch("/api/settings"),
+        fetch("/api/trades"),
         fetch("/api/status"),
         fetch("/api/equity"),
       ]);
@@ -162,6 +188,7 @@ export default function Home() {
 
       if (statusRes.ok) setStatus(await statusRes.json());
       if (equityRes.ok) setEquityCurve(await equityRes.json());
+      if (tradesRes.ok) setTrades(await tradesRes.json());
     } catch {
       console.log("Waiting for API connection...");
     }
@@ -215,7 +242,14 @@ export default function Home() {
               label="Dashboard"
               active={activeTab === "dashboard"}
               onClick={() => setActiveTab("dashboard")}
+            
             />
+            <SidebarButton
+              label="Replay Lab"
+              active={activeTab === "replay"}
+              onClick={() => setActiveTab("replay")}
+            />
+
             <SidebarButton
               label="Strategy Tuning"
               active={activeTab === "strategy"}
@@ -262,6 +296,7 @@ export default function Home() {
               {activeTab === "strategy" && "Strategy Tuning Lab"}
               {activeTab === "risk" && "Risk Engine"}
               {activeTab === "logs" && "Activity Logs"}
+              {activeTab === "replay" && "Trade Replay Lab"}
             </h2>
           </header>
 
@@ -295,6 +330,7 @@ export default function Home() {
           )}
 
           {activeTab === "logs" && <LogsTab />}
+          {activeTab === "replay" && <ReplayTab trades={trades} />}
         </section>
       </div>
     </main>
@@ -950,6 +986,207 @@ function AlertBox({ title, value }: { title: string; value: string }) {
       </p>
 
       <p className="mt-2 text-2xl font-bold text-white">{value}</p>
+    </div>
+  );
+}
+function ReplayTab({ trades }: { trades: Trade[] }) {
+  const totalTrades = trades.length;
+
+  const closedTrades =
+    trades.filter((t) => t.status === "closed");
+
+  const wins =
+    closedTrades.filter(
+      (t) => Number(t.total_pl ?? 0) > 0
+    ).length;
+
+  const losses =
+    closedTrades.filter(
+      (t) => Number(t.total_pl ?? 0) < 0
+    ).length;
+
+  const netPL =
+    closedTrades.reduce(
+      (sum, t) => sum + Number(t.total_pl ?? 0),
+      0
+    );
+
+  const winRate =
+    closedTrades.length > 0
+      ? (wins / closedTrades.length) * 100
+      : 0;
+
+  return (
+    <div className="space-y-6">
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+
+        <Metric
+          label="Logged Trades"
+          value={`${totalTrades}`}
+          sub="Stored in Supabase"
+        />
+
+        <Metric
+          label="Closed Trades"
+          value={`${closedTrades.length}`}
+          sub={`${wins} wins / ${losses} losses`}
+        />
+
+        <Metric
+          label="Win Rate"
+          value={`${winRate.toFixed(1)}%`}
+          sub="Closed trades only"
+        />
+
+        <Metric
+          label="Net P/L"
+          value={`£${netPL.toFixed(2)}`}
+          sub="Closed EA trades"
+        />
+
+      </div>
+
+      <Panel title="Trade Replay / Backtest Log">
+
+        <div className="overflow-x-auto">
+
+          <table className="w-full min-w-[900px] text-left text-sm">
+
+            <thead className="text-xs uppercase tracking-wider text-slate-500">
+
+              <tr>
+                <th className="pb-3">Ticket</th>
+                <th className="pb-3">Status</th>
+                <th className="pb-3">Direction</th>
+                <th className="pb-3">Lots</th>
+                <th className="pb-3">Entry</th>
+                <th className="pb-3">Close</th>
+                <th className="pb-3">P/L</th>
+                <th className="pb-3">Session</th>
+                <th className="pb-3">Preset</th>
+                <th className="pb-3">TF</th>
+                <th className="pb-3">Opened</th>
+              </tr>
+
+            </thead>
+
+            <tbody>
+
+              {trades.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={11}
+                    className="py-8 text-center text-slate-500"
+                  >
+                    No logged trades yet.
+                  </td>
+                </tr>
+              )}
+
+              {trades.map((trade) => {
+
+                const pl =
+                  Number(
+                    trade.total_pl ??
+                    trade.profit ??
+                    0
+                  );
+
+                return (
+                  <tr
+                    key={trade.id}
+                    className="border-t border-white/10"
+                  >
+
+                    <td className="py-3 text-slate-300">
+                      {trade.ticket}
+                    </td>
+
+                    <td className="py-3">
+
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold ${
+                          trade.status === "closed"
+                            ? "bg-slate-700 text-slate-200"
+                            : "bg-emerald-400 text-black"
+                        }`}
+                      >
+                        {trade.status}
+                      </span>
+
+                    </td>
+
+                    <td className="py-3">
+                      {trade.direction}
+                    </td>
+
+                    <td className="py-3">
+                      {Number(
+                        trade.lot_size ?? 0
+                      ).toFixed(2)}
+                    </td>
+
+                    <td className="py-3">
+                      {Number(
+                        trade.entry_price ?? 0
+                      ).toFixed(2)}
+                    </td>
+
+                    <td className="py-3">
+
+                      {trade.close_price
+                        ? Number(
+                            trade.close_price
+                          ).toFixed(2)
+                        : "-"}
+
+                    </td>
+
+                    <td
+                      className={`py-3 font-bold ${
+                        pl >= 0
+                          ? "text-emerald-300"
+                          : "text-red-300"
+                      }`}
+                    >
+                      £{pl.toFixed(2)}
+                    </td>
+
+                    <td className="py-3">
+                      {trade.session_name ?? "-"}
+                    </td>
+
+                    <td className="py-3">
+                      {trade.strategy_preset ?? "-"}
+                    </td>
+
+                    <td className="py-3">
+                      {trade.entry_timeframe ?? "-"}
+                    </td>
+
+                    <td className="py-3 text-slate-400">
+
+                      {trade.opened_at
+                        ? new Date(
+                            trade.opened_at
+                          ).toLocaleString()
+                        : "-"}
+
+                    </td>
+
+                  </tr>
+                );
+              })}
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </Panel>
+
     </div>
   );
 }
