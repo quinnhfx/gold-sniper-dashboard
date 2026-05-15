@@ -17,13 +17,25 @@ type Settings = {
   break_even_pips: number;
   max_trades_per_day: number;
   max_open_trades: number;
+
   max_daily_dd: number;
   max_floating_dd: number;
   max_loss_streak: number;
-  risk_lock: boolean;
+
+  lookback_bars: number;
+  min_sweep_pips: number;
+  max_sweep_pips: number;
+  min_candle_body_pips: number;
+
+  use_candle_confirmation: boolean;
   use_session_filter: boolean;
   use_dxy_filter: boolean;
   use_trendline_filter: boolean;
+
+  allow_buys: boolean;
+  allow_sells: boolean;
+
+  risk_lock: boolean;
   pause_trading: boolean;
   close_all: boolean;
   force_test_trade: boolean;
@@ -44,15 +56,28 @@ const defaultSettings: Settings = {
   stop_loss_pips: 70,
   take_profit_pips: 70,
   break_even_pips: 40,
+
   max_trades_per_day: 15,
   max_open_trades: 1,
+
   max_daily_dd: 5,
   max_floating_dd: 8,
   max_loss_streak: 3,
-  risk_lock: false,
+
+  lookback_bars: 32,
+  min_sweep_pips: 10,
+  max_sweep_pips: 60,
+  min_candle_body_pips: 0,
+
+  use_candle_confirmation: true,
   use_session_filter: true,
   use_dxy_filter: true,
   use_trendline_filter: true,
+
+  allow_buys: true,
+  allow_sells: true,
+
+  risk_lock: false,
   pause_trading: false,
   close_all: false,
   force_test_trade: false,
@@ -92,7 +117,9 @@ export default function Home() {
 
   useEffect(() => {
     loadData();
+
     const interval = setInterval(loadData, 5000);
+
     return () => clearInterval(interval);
   }, []);
 
@@ -111,8 +138,6 @@ export default function Home() {
       const data = await res.json();
 
       setSettings(data.settings ?? nextSettings);
-    } catch {
-      alert("API not connected");
     } finally {
       setSaving(false);
     }
@@ -268,7 +293,6 @@ export default function Home() {
                 label="Max Trades"
                 value={settings.max_trades_per_day}
                 step={1}
-                suffix="/ day"
                 onChange={(v) =>
                   setSettings({ ...settings, max_trades_per_day: v })
                 }
@@ -300,6 +324,83 @@ export default function Home() {
                 step={1}
                 onChange={(v) =>
                   setSettings({ ...settings, max_loss_streak: v })
+                }
+              />
+            </Panel>
+
+            <Panel title="Strategy Tuning">
+              <Field
+                label="Lookback Bars"
+                value={settings.lookback_bars}
+                step={1}
+                onChange={(v) =>
+                  setSettings({ ...settings, lookback_bars: v })
+                }
+              />
+
+              <Field
+                label="Min Sweep"
+                value={settings.min_sweep_pips}
+                step={1}
+                suffix="pips"
+                onChange={(v) =>
+                  setSettings({ ...settings, min_sweep_pips: v })
+                }
+              />
+
+              <Field
+                label="Max Sweep"
+                value={settings.max_sweep_pips}
+                step={1}
+                suffix="pips"
+                onChange={(v) =>
+                  setSettings({ ...settings, max_sweep_pips: v })
+                }
+              />
+
+              <Field
+                label="Min Candle Body"
+                value={settings.min_candle_body_pips}
+                step={1}
+                suffix="pips"
+                onChange={(v) =>
+                  setSettings({
+                    ...settings,
+                    min_candle_body_pips: v,
+                  })
+                }
+              />
+
+              <Toggle
+                label="Use Candle Confirmation"
+                checked={settings.use_candle_confirmation}
+                onChange={(v) =>
+                  setSettings({
+                    ...settings,
+                    use_candle_confirmation: v,
+                  })
+                }
+              />
+
+              <Toggle
+                label="Allow Buys"
+                checked={settings.allow_buys}
+                onChange={(v) =>
+                  setSettings({
+                    ...settings,
+                    allow_buys: v,
+                  })
+                }
+              />
+
+              <Toggle
+                label="Allow Sells"
+                checked={settings.allow_sells}
+                onChange={(v) =>
+                  setSettings({
+                    ...settings,
+                    allow_sells: v,
+                  })
                 }
               />
             </Panel>
@@ -461,6 +562,33 @@ function Field({
           <span className="text-xs text-slate-500">{suffix}</span>
         )}
       </div>
+    </label>
+  );
+}
+
+function Toggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between border-b border-white/10 py-3 text-sm">
+      <span className="text-slate-400">{label}</span>
+
+      <button
+        onClick={() => onChange(!checked)}
+        className={`rounded-xl px-3 py-1 text-xs font-bold ${
+          checked
+            ? "bg-emerald-400 text-black"
+            : "bg-red-500 text-white"
+        }`}
+      >
+        {checked ? "ON" : "OFF"}
+      </button>
     </label>
   );
 }
