@@ -186,7 +186,19 @@ export default function Home() {
         setSettings({ ...defaultSettings, ...data });
       }
 
-      if (statusRes.ok) setStatus(await statusRes.json());
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+
+        setStatus({
+          balance: Number(statusData.balance ?? 0),
+          equity: Number(statusData.equity ?? 0),
+          drawdown: Number(statusData.drawdown ?? 0),
+          floating_pl: Number(statusData.floating_pl ?? 0),
+          open_trades: Number(statusData.open_trades ?? 0),
+          today_pl: Number(statusData.today_pl ?? 0),
+          last_heartbeat: statusData.last_heartbeat ?? "",
+        });
+      }
       if (equityRes.ok) {
         const equityData = await equityRes.json();
         setEquityCurve(Array.isArray(equityData) ? equityData : []);
