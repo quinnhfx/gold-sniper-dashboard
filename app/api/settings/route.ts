@@ -26,7 +26,17 @@ export async function GET(request: Request) {
     .eq("id", BOT_ID)
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error || !data) {
+    return NextResponse.json({
+      lot_size: 0.01,
+      stop_loss: 70,
+      take_profit: 140,
+      risk_percent: 1,
+      allow_trading: true,
+      close_all: false,
+      force_test_trade: false,
+    });
+  }
 
   return NextResponse.json(data);
 }
@@ -38,24 +48,21 @@ export async function POST(request: Request) {
     .from("bot_settings")
     .upsert({
       id: BOT_ID,
-      lots_per_1000: body.lots_per_1000,
-      stop_loss_pips: body.stop_loss_pips,
-      take_profit_pips: body.take_profit_pips,
-      break_even_pips: body.break_even_pips,
-      max_trades_per_day: body.max_trades_per_day,
-      max_open_trades: body.max_open_trades,
-      use_session_filter: body.use_session_filter,
-      use_dxy_filter: body.use_dxy_filter,
-      use_trendline_filter: body.use_trendline_filter,
-      pause_trading: body.pause_trading,
-      close_all: body.close_all,
-      force_test_trade: body.force_test_trade,
+      ...body,
       updated_at: new Date().toISOString(),
     })
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
+  }
 
-  return NextResponse.json({ success: true, settings: data });
+  return NextResponse.json({
+    success: true,
+    settings: data,
+  });
 }
