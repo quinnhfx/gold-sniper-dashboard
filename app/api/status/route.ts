@@ -3,7 +3,24 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 const BOT_ID = "gold-sniper";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+
+  const balance = searchParams.get("balance");
+
+  if (balance !== null) {
+    await supabaseAdmin.from("bot_status").upsert({
+      id: BOT_ID,
+      balance: Number(searchParams.get("balance") ?? 0),
+      equity: Number(searchParams.get("equity") ?? 0),
+      drawdown: Number(searchParams.get("drawdown") ?? 0),
+      floating_pl: Number(searchParams.get("floating_pl") ?? 0),
+      open_trades: Number(searchParams.get("open_trades") ?? 0),
+      today_pl: Number(searchParams.get("today_pl") ?? 0),
+      last_heartbeat: new Date().toISOString(),
+    });
+  }
+
   const { data, error } = await supabaseAdmin
     .from("bot_status")
     .select("*")
@@ -11,57 +28,8 @@ export async function GET() {
     .single();
 
   if (error) {
-    console.log(error);
-
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json(data);
-}
-
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-
-    console.log("POST BODY:", body);
-
-    const { data, error } = await supabaseAdmin
-      .from("bot_status")
-      .upsert({
-        id: BOT_ID,
-        balance: body.balance,
-        equity: body.equity,
-        drawdown: body.drawdown,
-        floating_pl: body.floating_pl,
-        open_trades: body.open_trades,
-        today_pl: body.today_pl,
-        last_heartbeat: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.log("SUPABASE ERROR:", error);
-
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      status: data,
-    });
-  } catch (err) {
-    console.log("API ERROR:", err);
-
-    return NextResponse.json(
-      { error: "Failed POST" },
-      { status: 500 }
-    );
-  }
 }
