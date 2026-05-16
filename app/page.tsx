@@ -912,7 +912,11 @@ function LogsTab({ logs }: { logs: LogEvent[] }) {
                   label="Time"
                   value={
                     log.created_at
-                      ? new Date(log.created_at).toLocaleString()
+                      ? new Date(
+                          new Date(log.created_at).getTime() - 60 * 60 * 1000
+                        ).toLocaleString("en-GB", {
+                          hour12: false,
+                        })
                       : "-"
                   }
                 />
