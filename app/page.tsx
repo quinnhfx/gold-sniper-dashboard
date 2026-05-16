@@ -194,6 +194,8 @@ export default function Home() {
         cache: "no-store",
       });
 
+      const [dirty, setDirty] = useState(false);
+
       const equityRes = await fetch(`/api/equity?t=${Date.now()}`, {
         cache: "no-store",
       });
@@ -205,6 +207,11 @@ export default function Home() {
       const logsRes = await fetch(`/api/trade-event?t=${Date.now()}`, {
         cache: "no-store",
       });
+
+      if (settingsRes.ok && !dirty) {
+        const data = await settingsRes.json();
+        setSettings({ ...defaultSettings, ...data });
+      }
 
       if (settingsRes.ok) {
         const settingsData = await settingsRes.json();
@@ -571,7 +578,9 @@ function StrategyTab({
         <Toggle
           label="Asia Session"
           checked={settings.use_asia_session}
-          onChange={(v) => setSettings({ ...settings, use_asia_session: v })}
+          onChange={(v) => {
+            setSettings({ ...settings, use_asia_session: v });
+          }}
         />
         <p className="mb-3 text-xs text-slate-500">23:00 - 07:00 GMT</p>
 
@@ -1035,6 +1044,7 @@ function Field({
   return (
     <label className="flex items-center justify-between border-b border-white/10 py-3 text-sm">
       <span className="text-slate-400">{label}</span>
+
       <div className="flex items-center gap-2">
         <input
           type="number"
@@ -1043,7 +1053,12 @@ function Field({
           onChange={(e) => onChange(Number(e.target.value))}
           className="w-24 rounded-xl border border-white/10 bg-[#020617] px-3 py-2 text-right text-white outline-none focus:border-cyan-400"
         />
-        {suffix && <span className="text-xs text-slate-500">{suffix}</span>}
+
+        {suffix && (
+          <span className="text-xs text-slate-500">
+            {suffix}
+          </span>
+        )}
       </div>
     </label>
   );
@@ -1066,7 +1081,9 @@ function Toggle({
         type="button"
         onClick={() => onChange(!checked)}
         className={`rounded-xl px-3 py-1 text-xs font-bold ${
-          checked ? "bg-emerald-400 text-black" : "bg-red-500 text-white"
+          checked
+            ? "bg-emerald-400 text-black"
+            : "bg-red-500 text-white"
         }`}
       >
         {checked ? "ON" : "OFF"}
@@ -1096,7 +1113,11 @@ function SelectField({
         className="rounded-xl border border-white/10 bg-[#020617] px-3 py-2 text-white outline-none focus:border-cyan-400"
       >
         {options.map((option) => (
-          <option key={option} value={option} className="bg-[#020617]">
+          <option
+            key={option}
+            value={option}
+            className="bg-[#020617]"
+          >
             {option}
           </option>
         ))}
