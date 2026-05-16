@@ -183,6 +183,7 @@ export default function Home() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [saving, setSaving] = useState(false);
   const [logs, setLogs] = useState<LogEvent[]>([]);
+  const [dirty, setDirty] = useState(false);
 
   async function loadData() {
     try {
@@ -194,7 +195,6 @@ export default function Home() {
         cache: "no-store",
       });
 
-      const [dirty, setDirty] = useState(false);
 
       const equityRes = await fetch(`/api/equity?t=${Date.now()}`, {
         cache: "no-store",
@@ -211,11 +211,6 @@ export default function Home() {
       if (settingsRes.ok && !dirty) {
         const data = await settingsRes.json();
         setSettings({ ...defaultSettings, ...data });
-      }
-
-      if (settingsRes.ok) {
-        const settingsData = await settingsRes.json();
-        setSettings({ ...defaultSettings, ...settingsData });
       }
 
       if (logsRes.ok) {
@@ -245,6 +240,10 @@ export default function Home() {
       if (tradesRes.ok) {
         const tradeData = await tradesRes.json();
         setTrades(Array.isArray(tradeData) ? tradeData : []);
+      }
+      if (logsRes.ok) {
+        const logData = await logsRes.json();
+        setLogs(Array.isArray(logData) ? logData : []);
       }
     } catch (error) {
       console.log("Dashboard load error:", error);
