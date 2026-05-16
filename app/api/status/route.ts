@@ -40,13 +40,19 @@ export async function GET(request: Request) {
     );
   }
 
-  return NextResponse.json({
-    balance: Number(data.balance ?? 0),
-    equity: Number(data.equity ?? 0),
-    drawdown: Number(data.drawdown ?? 0),
-    floating_pl: Number(data.floating_pl ?? 0),
-    open_trades: Number(data.open_trades ?? 0),
-    today_pl: Number(data.today_pl ?? 0),
-    last_heartbeat: data.last_heartbeat ?? null,
-  });
-}
+  return NextResponse.json(
+    {
+      balance: Number(data.balance ?? 0),
+      equity: Number(data.equity ?? 0),
+      drawdown: Number(data.drawdown ?? 0),
+      floating_pl: Number(data.floating_pl ?? 0),
+      open_trades: Number(data.open_trades ?? 0),
+      today_pl: Number(data.today_pl ?? 0),
+      last_heartbeat: data.last_heartbeat ?? null,
+   },
+   {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+     },
+    }
+  )}
