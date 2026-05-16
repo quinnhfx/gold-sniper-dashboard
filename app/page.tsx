@@ -189,6 +189,8 @@ export default function Home() {
       if (statusRes.ok) {
         const statusData = await statusRes.json();
 
+        console.log("STATUS DATA:", statusData);
+
         setStatus({
           balance: Number(statusData.balance ?? 0),
           equity: Number(statusData.equity ?? 0),
@@ -375,7 +377,7 @@ function DashboardTab({
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Metric
           label="Balance"
-          value={`£${Number(status.balance).toFixed(2)}`}
+          value={`£${Number(status.balance ?? 0).toFixed(2)}`}
           sub="Live from MT4"
         />
         <Metric
