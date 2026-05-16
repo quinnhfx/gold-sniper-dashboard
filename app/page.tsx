@@ -178,12 +178,12 @@ const defaultStatus: BotStatus = {
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState<BotStatus>(defaultStatus);
   const [equityCurve, setEquityCurve] = useState<any[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [saving, setSaving] = useState(false);
   const [logs, setLogs] = useState<LogEvent[]>([]);
-  const [dirty, setDirty] = useState(false);
 
   async function loadData() {
     try {
@@ -272,9 +272,18 @@ export default function Home() {
       setSettings({ ...defaultSettings, ...(data.settings ?? nextSettings) });
     } finally {
       setSaving(false);
+      setDirty(false);
     }
   }
 
+  function updateSettings(patch: Partial<Settings>) {
+    setDirty(true);
+
+    setSettings((current: Settings) => ({
+      ...current,
+      ...patch,
+    }));
+  }
   const heartbeatAge = status.last_heartbeat
     ? Math.round(
         (Date.now() - new Date(status.last_heartbeat).getTime()) / 1000
@@ -361,7 +370,7 @@ export default function Home() {
               status={status}
               equityCurve={equityCurve}
               settings={settings}
-              setSettings={setSettings}
+              updateSettings={updateSettings}
               saveSettings={saveSettings}
               saving={saving}
             />
@@ -370,7 +379,7 @@ export default function Home() {
           {activeTab === "strategy" && (
             <StrategyTab
               settings={settings}
-              setSettings={setSettings}
+              updateSettings={updateSettings}
               saveSettings={saveSettings}
               saving={saving}
             />
@@ -379,7 +388,7 @@ export default function Home() {
           {activeTab === "risk" && (
             <RiskTab
               settings={settings}
-              setSettings={setSettings}
+              updateSettings={updateSettings}
               saveSettings={saveSettings}
               saving={saving}
             />
@@ -393,18 +402,19 @@ export default function Home() {
   );
 }
 
+
 function DashboardTab({
   status,
   equityCurve,
   settings,
-  setSettings,
+  updateSettings,
   saveSettings,
   saving,
 }: {
   status: BotStatus;
   equityCurve: any[];
   settings: Settings;
-  setSettings: (v: Settings) => void;
+  updateSettings: (patch: Partial<Settings>) => void;
   saveSettings: (v?: Settings) => void;
   saving: boolean;
 }) {
@@ -470,7 +480,7 @@ function DashboardTab({
             label="Lots / £1000"
             value={settings.lots_per_1000}
             step={0.01}
-            onChange={(v) => setSettings({ ...settings, lots_per_1000: v })}
+            onChange={(v) => updateSettings({ lots_per_1000: v })}
           />
 
           <Field
@@ -478,7 +488,7 @@ function DashboardTab({
             value={settings.stop_loss_pips}
             step={10}
             suffix="pips"
-            onChange={(v) => setSettings({ ...settings, stop_loss_pips: v })}
+            onChange={(v) => updateSettings({ stop_loss_pips: v })}
           />
 
           <Field
@@ -486,7 +496,7 @@ function DashboardTab({
             value={settings.take_profit_pips}
             step={10}
             suffix="pips"
-            onChange={(v) => setSettings({ ...settings, take_profit_pips: v })}
+            onChange={(v) => updateSettings({ ...settings, take_profit_pips: v })}
           />
 
           <Field
@@ -494,7 +504,7 @@ function DashboardTab({
             value={settings.break_even_pips}
             step={5}
             suffix="pips"
-            onChange={(v) => setSettings({ ...settings, break_even_pips: v })}
+            onChange={(v) => updateSettings({ ...settings, break_even_pips: v })}
           />
         </Panel>
 
@@ -506,7 +516,7 @@ function DashboardTab({
                 pause_trading: !settings.pause_trading,
               };
 
-              setSettings(next);
+              updateSettings({ pause_trading: next.pause_trading });
               saveSettings(next);
             }}
             className={`mb-3 w-full rounded-2xl px-5 py-4 font-bold ${
@@ -525,7 +535,7 @@ function DashboardTab({
                 close_all: true,
               };
 
-              setSettings(next);
+              updateSettings({ close_all: true });
               saveSettings(next);
             }}
             className="mb-3 w-full rounded-2xl bg-red-600 px-5 py-4 font-bold text-white"
@@ -547,7 +557,7 @@ function DashboardTab({
                 force_test_trade: true,
               };
 
-              setSettings(next);
+              updateSettings({ force_test_trade: true });
               saveSettings(next);
             }}
             className="mt-3 w-full rounded-2xl bg-purple-500 px-5 py-4 font-bold text-white"
@@ -562,12 +572,12 @@ function DashboardTab({
 
 function StrategyTab({
   settings,
-  setSettings,
+  updateSettings,
   saveSettings,
   saving,
 }: {
   settings: Settings;
-  setSettings: (v: Settings) => void;
+  updateSettings: (patch: Partial<Settings>) => void;
   saveSettings: (v?: Settings) => void;
   saving: boolean;
 }) {
@@ -578,7 +588,7 @@ function StrategyTab({
           label="Asia Session"
           checked={settings.use_asia_session}
           onChange={(v) => {
-            setSettings({ ...settings, use_asia_session: v });
+            updateSettings({ ...settings, use_asia_session: v });
           }}
         />
         <p className="mb-3 text-xs text-slate-500">23:00 - 07:00 GMT</p>
@@ -586,21 +596,21 @@ function StrategyTab({
         <Toggle
           label="London Session"
           checked={settings.use_london_session}
-          onChange={(v) => setSettings({ ...settings, use_london_session: v })}
+          onChange={(v) => updateSettings({ ...settings, use_london_session: v })}
         />
         <p className="mb-3 text-xs text-slate-500">08:00 - 11:00 GMT</p>
 
         <Toggle
           label="New York Session"
           checked={settings.use_newyork_session}
-          onChange={(v) => setSettings({ ...settings, use_newyork_session: v })}
+          onChange={(v) => updateSettings({ ...settings, use_newyork_session: v })}
         />
         <p className="mb-3 text-xs text-slate-500">13:00 - 21:00 GMT</p>
 
         <Toggle
           label="Use Session Filter"
           checked={settings.use_session_filter}
-          onChange={(v) => setSettings({ ...settings, use_session_filter: v })}
+          onChange={(v) => updateSettings({ ...settings, use_session_filter: v })}
         />
       </Panel>
 
@@ -627,7 +637,7 @@ function StrategyTab({
           label="Lookback Bars"
           value={settings.lookback_bars}
           step={1}
-          onChange={(v) => setSettings({ ...settings, lookback_bars: v })}
+          onChange={(v) => updateSettings({ ...settings, lookback_bars: v })}
         />
       </Panel>
 
@@ -637,7 +647,7 @@ function StrategyTab({
           value={settings.min_sweep_pips}
           step={1}
           suffix="pips"
-          onChange={(v) => setSettings({ ...settings, min_sweep_pips: v })}
+          onChange={(v) => updateSettings({ ...settings, min_sweep_pips: v })}
         />
 
         <Field
@@ -645,7 +655,7 @@ function StrategyTab({
           value={settings.max_sweep_pips}
           step={1}
           suffix="pips"
-          onChange={(v) => setSettings({ ...settings, max_sweep_pips: v })}
+          onChange={(v) => updateSettings({ ...settings, max_sweep_pips: v })}
         />
 
         <Field
@@ -654,7 +664,7 @@ function StrategyTab({
           step={1}
           suffix="pips"
           onChange={(v) =>
-            setSettings({ ...settings, min_candle_body_pips: v })
+            updateSettings({ ...settings, min_candle_body_pips: v })
           }
         />
 
@@ -662,7 +672,7 @@ function StrategyTab({
           label="Wait For Confirmation Candle"
           checked={settings.use_candle_confirmation}
           onChange={(v) =>
-            setSettings({ ...settings, use_candle_confirmation: v })
+            updateSettings({ ...settings, use_candle_confirmation: v })
           }
         />
       </Panel>
@@ -672,14 +682,14 @@ function StrategyTab({
           label="Analysis Timeframe"
           value={settings.analysis_timeframe}
           options={["M1", "M5", "M15", "M30", "H1", "H4"]}
-          onChange={(v) => setSettings({ ...settings, analysis_timeframe: v })}
+          onChange={(v) => updateSettings({ ...settings, analysis_timeframe: v })}
         />
 
         <SelectField
           label="Entry Timeframe"
           value={settings.entry_timeframe}
           options={["M1", "M5", "M15", "M30", "H1"]}
-          onChange={(v) => setSettings({ ...settings, entry_timeframe: v })}
+          onChange={(v) => updateSettings({ ...settings, entry_timeframe: v })}
         />
       </Panel>
 
@@ -687,26 +697,26 @@ function StrategyTab({
         <Toggle
           label="Allow Buys"
           checked={settings.allow_buys}
-          onChange={(v) => setSettings({ ...settings, allow_buys: v })}
+          onChange={(v) => updateSettings({ ...settings, allow_buys: v })}
         />
 
         <Toggle
           label="Allow Sells"
           checked={settings.allow_sells}
-          onChange={(v) => setSettings({ ...settings, allow_sells: v })}
+          onChange={(v) => updateSettings({ ...settings, allow_sells: v })}
         />
 
         <Toggle
           label="DXY Filter"
           checked={settings.use_dxy_filter}
-          onChange={(v) => setSettings({ ...settings, use_dxy_filter: v })}
+          onChange={(v) => updateSettings({ ...settings, use_dxy_filter: v })}
         />
 
         <Toggle
           label="Trendline Touch Filter"
           checked={settings.use_trendline_filter}
           onChange={(v) =>
-            setSettings({ ...settings, use_trendline_filter: v })
+            updateSettings({ ...settings, use_trendline_filter: v })
           }
         />
 
@@ -714,7 +724,7 @@ function StrategyTab({
           label="Breakout Retest Required"
           checked={settings.use_breakout_retest}
           onChange={(v) =>
-            setSettings({ ...settings, use_breakout_retest: v })
+            updateSettings({ ...settings, use_breakout_retest: v })
           }
         />
       </Panel>
@@ -723,7 +733,7 @@ function StrategyTab({
         <Toggle
           label="Enable Layering"
           checked={settings.use_layering}
-          onChange={(v) => setSettings({ ...settings, use_layering: v })}
+          onChange={(v) => updateSettings({ ...settings, use_layering: v })}
         />
 
         {settings.use_layering && (
@@ -734,7 +744,7 @@ function StrategyTab({
               step={5}
               suffix="pips"
               onChange={(v) =>
-                setSettings({ ...settings, layer_distance_pips: v })
+                updateSettings({ ...settings, layer_distance_pips: v })
               }
             />
 
@@ -742,7 +752,7 @@ function StrategyTab({
               label="Max Layers"
               value={settings.max_layers}
               step={1}
-              onChange={(v) => setSettings({ ...settings, max_layers: v })}
+              onChange={(v) => updateSettings({ ...settings, max_layers: v })}
             />
 
             <Field
@@ -750,7 +760,7 @@ function StrategyTab({
               value={settings.layer_multiplier}
               step={0.1}
               onChange={(v) =>
-                setSettings({ ...settings, layer_multiplier: v })
+                updateSettings({ ...settings, layer_multiplier: v })
               }
             />
           </>
@@ -762,7 +772,7 @@ function StrategyTab({
           label="Structure Invalidation"
           checked={settings.use_structure_invalidation}
           onChange={(v) =>
-            setSettings({ ...settings, use_structure_invalidation: v })
+            updateSettings({ ...settings, use_structure_invalidation: v })
           }
         />
 
@@ -771,7 +781,7 @@ function StrategyTab({
           value={settings.invalidation_pips}
           step={10}
           suffix="pips"
-          onChange={(v) => setSettings({ ...settings, invalidation_pips: v })}
+          onChange={(v) => updateSettings({ ...settings, invalidation_pips: v })}
         />
 
         <Field
@@ -779,7 +789,7 @@ function StrategyTab({
           value={settings.max_spread_points}
           step={10}
           suffix="points"
-          onChange={(v) => setSettings({ ...settings, max_spread_points: v })}
+          onChange={(v) => updateSettings({ ...settings, max_spread_points: v })}
         />
 
         <Field
@@ -788,7 +798,7 @@ function StrategyTab({
           step={5}
           suffix="mins"
           onChange={(v) =>
-            setSettings({ ...settings, trade_cooldown_minutes: v })
+            updateSettings({ ...settings, trade_cooldown_minutes: v })
           }
         />
       </Panel>
@@ -798,7 +808,7 @@ function StrategyTab({
           label="Preset"
           value={settings.strategy_preset}
           options={["aggressive", "balanced", "strict"]}
-          onChange={(v) => setSettings({ ...settings, strategy_preset: v })}
+          onChange={(v) => updateSettings({ ...settings, strategy_preset: v })}
         />
 
         <button
@@ -814,12 +824,12 @@ function StrategyTab({
 
 function RiskTab({
   settings,
-  setSettings,
+  updateSettings,
   saveSettings,
   saving,
 }: {
   settings: Settings;
-  setSettings: (v: Settings) => void;
+  updateSettings: (patch: Partial<Settings>) => void;
   saveSettings: (v?: Settings) => void;
   saving: boolean;
 }) {
@@ -831,7 +841,7 @@ function RiskTab({
           value={settings.max_daily_dd}
           step={1}
           suffix="%"
-          onChange={(v) => setSettings({ ...settings, max_daily_dd: v })}
+          onChange={(v) => updateSettings({ ...settings, max_daily_dd: v })}
         />
 
         <Field
@@ -839,14 +849,14 @@ function RiskTab({
           value={settings.max_floating_dd}
           step={1}
           suffix="%"
-          onChange={(v) => setSettings({ ...settings, max_floating_dd: v })}
+          onChange={(v) => updateSettings({ ...settings, max_floating_dd: v })}
         />
 
         <Field
           label="Max Loss Streak"
           value={settings.max_loss_streak}
           step={1}
-          onChange={(v) => setSettings({ ...settings, max_loss_streak: v })}
+          onChange={(v) => updateSettings({ ...settings, max_loss_streak: v })}
         />
 
         <button
