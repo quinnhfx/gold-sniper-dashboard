@@ -174,22 +174,29 @@ export default function Home() {
 
   async function loadData() {
     try {
-      const [settingsRes, statusRes, equityRes, tradesRes] = await Promise.all([
-        fetch("/api/settings"),
-        fetch("/api/trades"),
-        fetch("/api/status"),
-        fetch("/api/equity"),
-      ]);
+      const settingsRes = await fetch(`/api/settings?t=${Date.now()}`, {
+        cache: "no-store",
+      });
+
+      const statusRes = await fetch(`/api/status?t=${Date.now()}`, {
+        cache: "no-store",
+      });
+
+      const equityRes = await fetch(`/api/equity?t=${Date.now()}`, {
+        cache: "no-store",
+      });
+
+      const tradesRes = await fetch(`/api/trades?t=${Date.now()}`, {
+        cache: "no-store",
+      });
 
       if (settingsRes.ok) {
-        const data = await settingsRes.json();
-        setSettings({ ...defaultSettings, ...data });
+        const settingsData = await settingsRes.json();
+        setSettings({ ...defaultSettings, ...settingsData });
       }
 
       if (statusRes.ok) {
         const statusData = await statusRes.json();
-
-        console.log("STATUS DATA:", statusData);
 
         setStatus({
           balance: Number(statusData.balance ?? 0),
@@ -201,16 +208,18 @@ export default function Home() {
           last_heartbeat: statusData.last_heartbeat ?? "",
         });
       }
+
       if (equityRes.ok) {
         const equityData = await equityRes.json();
         setEquityCurve(Array.isArray(equityData) ? equityData : []);
       }
+
       if (tradesRes.ok) {
         const tradeData = await tradesRes.json();
         setTrades(Array.isArray(tradeData) ? tradeData : []);
       }
-    } catch {
-      console.log("Waiting for API connection...");
+    } catch (error) {
+      console.log("Dashboard load error:", error);
     }
   }
 
