@@ -185,6 +185,17 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [logs, setLogs] = useState<LogEvent[]>([]);
 
+  async function loadSettings() {
+  const res = await fetch(`/api/settings?t=${Date.now()}`, {
+    cache: "no-store",
+  });
+
+  if (res.ok) {
+    const data = await res.json();
+    setSettings({ ...defaultSettings, ...data });
+  }
+}
+
   async function loadData() {
     try {
       const settingsRes = await fetch(`/api/settings?t=${Date.now()}`, {
@@ -207,11 +218,6 @@ export default function Home() {
       const logsRes = await fetch(`/api/trade-event?t=${Date.now()}`, {
         cache: "no-store",
       });
-
-      if (settingsRes.ok && !dirty) {
-        const data = await settingsRes.json();
-        setSettings({ ...defaultSettings, ...data });
-      }
 
       if (logsRes.ok) {
         const logData = await logsRes.json();
@@ -251,8 +257,11 @@ export default function Home() {
   }
 
   useEffect(() => {
+    loadSettings();
     loadData();
+
     const interval = setInterval(loadData, 5000);
+
     return () => clearInterval(interval);
   }, []);
 
