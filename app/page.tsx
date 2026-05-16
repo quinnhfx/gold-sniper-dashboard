@@ -12,6 +12,17 @@ import {
 
 type Tab = "dashboard" | "strategy" | "risk" | "replay" | "logs";
 
+type LogEvent = {
+  id: number;
+  ticket: number;
+  event_type: string;
+  message: string;
+  price: number;
+  equity: number;
+  balance: number;
+  created_at: string;
+};
+
 type Trade = {
   id: number;
   ticket: number;
@@ -171,6 +182,7 @@ export default function Home() {
   const [equityCurve, setEquityCurve] = useState<any[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [saving, setSaving] = useState(false);
+  const [logs, setLogs] = useState<LogEvent[]>([]);
 
   async function loadData() {
     try {
@@ -190,9 +202,18 @@ export default function Home() {
         cache: "no-store",
       });
 
+      const logsRes = await fetch(`/api/trade-event?t=${Date.now()}`, {
+        cache: "no-store",
+      });
+
       if (settingsRes.ok) {
         const settingsData = await settingsRes.json();
         setSettings({ ...defaultSettings, ...settingsData });
+      }
+
+      if (logsRes.ok) {
+        const logData = await logsRes.json();
+        setLogs(Array.isArray(logData) ? logData : []);
       }
 
       if (statusRes.ok) {
@@ -358,7 +379,7 @@ export default function Home() {
             />
           )}
 
-          {activeTab === "logs" && <LogsTab />}
+          {activeTab === "logs" && <LogsTab logs={logs} />}
           {activeTab === "replay" && <ReplayTab trades={trades} />}
         </section>
       </div>
@@ -831,14 +852,87 @@ function RiskTab({
   );
 }
 
-function LogsTab() {
+function LogsTab({ logs }: { logs: LogEvent[] }) {
   return (
-    <Panel title="Activity Logs">
-      <div className="space-y-3 text-sm text-slate-400">
-        <p>Trade logs and settings audit trail will be added here.</p>
-        <p>Next upgrade: store every setting change and every EA action.</p>
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-3">
+        <Metric
+          label="Total Events"
+          value={`${logs.length}`}
+          sub="Latest 100 journal logs"
+        />
+
+        <Metric
+          label="Trade Opens"
+          value={`${logs.filter((l) => l.event_type === "OPEN").length}`}
+          sub="EA open events"
+        />
+
+        <Metric
+          label="Trade Closes"
+          value={`${logs.filter((l) => l.event_type === "CLOSE").length}`}
+          sub="EA close events"
+        />
       </div>
-    </Panel>
+
+      <Panel title="Trade Journal / Activity Log">
+        <div className="space-y-3">
+          {logs.length === 0 && (
+            <p className="py-8 text-center text-sm text-slate-500">
+              No activity logged yet. New EA actions will appear here.
+            </p>
+          )}
+
+          {logs.map((log) => (
+            <div
+              key={log.id}
+              className="rounded-2xl border border-white/10 bg-[#020617] p-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.25em] text-cyan-300">
+                    {log.event_type}
+                  </p>
+
+                  <h3 className="mt-1 text-lg font-bold text-white">
+                    {log.message || "EA event"}
+                  </h3>
+                </div>
+
+                <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-slate-300">
+                  Ticket #{log.ticket || "-"}
+                </span>
+              </div>
+
+              <div className="mt-4 grid gap-3 text-sm md:grid-cols-4">
+                <MiniStat label="Price" value={Number(log.price ?? 0).toFixed(2)} />
+                <MiniStat label="Equity" value={`£${Number(log.equity ?? 0).toFixed(2)}`} />
+                <MiniStat label="Balance" value={`£${Number(log.balance ?? 0).toFixed(2)}`} />
+                <MiniStat
+                  label="Time"
+                  value={
+                    log.created_at
+                      ? new Date(log.created_at).toLocaleString()
+                      : "-"
+                  }
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 font-bold text-white">{value}</p>
+    </div>
   );
 }
 
